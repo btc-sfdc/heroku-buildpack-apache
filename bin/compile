@@ -15,7 +15,15 @@ YARN_VERSION="1.19.1"
 BIN_DIR=$(dirname $0)
 BUILD_DIR=$1
 CACHE_DIR=$2
+ENV_DIR=$3
 LP_DIR=`cd $(dirname $0); cd ..; pwd`
+
+# Load environment variables from Heroku
+if [ -d "$ENV_DIR" ]; then
+  for key in $ENV_DIR/*; do
+    [ -f "$key" ] && export "$(basename $key)=$(cat $key)"
+  done
+fi
 
 # include .files when moving things around
 shopt -s dotglob
@@ -65,6 +73,11 @@ CONTENT_BUILD_DIR="$BUILD_DIR/content-build"
 if [ ! -d "$CONTENT_BUILD_DIR" ]; then
   git clone --depth 1 https://github.com/department-of-veterans-affairs/content-build.git "$CONTENT_BUILD_DIR"
 fi
+
+# Create vets-website directory structure to satisfy content-build symlink requirements
+VETS_WEBSITE_DIR="$BUILD_DIR/vets-website/build/localhost/generated"
+mkdir -p "$VETS_WEBSITE_DIR"
+echo "-----> Created vets-website directory structure"
 
 cd "$CONTENT_BUILD_DIR"
 
