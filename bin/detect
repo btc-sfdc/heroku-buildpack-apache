@@ -4,6 +4,8 @@ if [ -f $1/index.php ]; then
   echo "PHP" && exit 0
 elif [ -f $1/index.html ]; then
   echo "HTML" && exit 0
+elif [ -f $1/.va-content-build ]; then
+  echo "VA Content Build" && exit 0
 else
   echo "no" && exit 1
 fi

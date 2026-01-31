@@ -9,6 +9,8 @@ APACHE_VERSION="2.2.22"
 APACHE_PATH="apache"
 PHP_VERSION="5.3.10"
 PHP_PATH="php"
+NODE_VERSION="14.15.0"
+YARN_VERSION="1.19.1"
 
 BIN_DIR=$(dirname $0)
 BUILD_DIR=$1
@@ -19,6 +21,92 @@ LP_DIR=`cd $(dirname $0); cd ..; pwd`
 shopt -s dotglob
 
 cd $BUILD_DIR
+
+# ====================================
+# STEP 1: Set up Node
+# ====================================
+echo "-----> Installing nvm and Node.js $NODE_VERSION"
+
+# Install nvm
+export NVM_DIR="$BUILD_DIR/.nvm"
+mkdir -p "$NVM_DIR"
+
+# Download and install nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+
+# Load nvm
+export NVM_DIR="$BUILD_DIR/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Install Node.js
+echo "-----> Installing Node.js $NODE_VERSION"
+nvm install $NODE_VERSION
+nvm alias default $NODE_VERSION
+nvm use default
+
+# Verify Node installation
+node --version
+npm --version
+
+# Install yarn globally
+echo "-----> Installing yarn $YARN_VERSION"
+npm install -g yarn@$YARN_VERSION
+
+# Verify yarn installation
+yarn --version
+
+# ====================================
+# STEP 2: Get the source code and build
+# ====================================
+echo "-----> Cloning content-build repository"
+
+# Clone content-build repository
+CONTENT_BUILD_DIR="$BUILD_DIR/content-build"
+if [ ! -d "$CONTENT_BUILD_DIR" ]; then
+  git clone --depth 1 https://github.com/department-of-veterans-affairs/content-build.git "$CONTENT_BUILD_DIR"
+fi
+
+cd "$CONTENT_BUILD_DIR"
+
+# Install dependencies
+echo "-----> Installing content-build dependencies"
+yarn install
+
+# Optimize content queries if CONTENT_TYPES is set
+if [ ! -z "$CONTENT_TYPES" ]; then
+  echo "-----> Optimizing content queries"
+  echo "       Enabled types: $CONTENT_TYPES"
+
+  # Copy optimizer script
+  cp "$LP_DIR/scripts/optimize-content-queries.js" "$CONTENT_BUILD_DIR/"
+
+  # Run optimizer
+  QUERIES_FILE="$CONTENT_BUILD_DIR/src/site/stages/build/drupal/individual-queries.js"
+  if [ -f "$QUERIES_FILE" ]; then
+    node "$CONTENT_BUILD_DIR/optimize-content-queries.js" "$QUERIES_FILE" "$CONTENT_TYPES"
+    echo "       ✅ Content queries optimized"
+  else
+    echo "       ⚠️  Warning: individual-queries.js not found, skipping optimization"
+  fi
+else
+  echo "-----> Building ALL content types (set CONTENT_TYPES to optimize)"
+  echo "       Example: CONTENT_TYPES='pages,navigation,forms'"
+  echo "       This will take a long time!"
+fi
+
+# Fetch Drupal cache to speed up build (optional but recommended)
+echo "-----> Fetching Drupal cache"
+yarn fetch-drupal-cache || echo "Warning: Could not fetch Drupal cache, proceeding anyway"
+
+# Build static content
+echo "-----> Building static content (this may take a while)"
+yarn build --buildtype=localhost
+
+# The built static files should now be in the build directory
+# Typically this will be in build/localhost or similar
+echo "-----> Static content build complete"
+
+cd "$BUILD_DIR"
 
 APACHE_URL="https://s3.amazonaws.com/php-lp/apache-$APACHE_VERSION.tar.gz"
 echo "-----> Bundling Apache version $APACHE_VERSION"
@@ -40,6 +128,19 @@ cat >>boot.sh <<EOF
 for var in \`env|cut -f1 -d=\`; do
   echo "PassEnv \$var" >> /app/apache/conf/httpd.conf;
 done
+
+# Configure Apache DocumentRoot for VA content-build
+# Check if content-build exists and update DocumentRoot
+if [ -d "/app/content-build/build/localhost" ]; then
+  echo "Configuring Apache to serve VA content from /app/content-build/build/localhost"
+  sed -i 's|DocumentRoot "/app"|DocumentRoot "/app/content-build/build/localhost"|g' /app/apache/conf/httpd.conf
+  sed -i 's|<Directory "/app">|<Directory "/app/content-build/build/localhost">|g' /app/apache/conf/httpd.conf
+elif [ -d "/app/content-build/build" ]; then
+  echo "Configuring Apache to serve VA content from /app/content-build/build"
+  sed -i 's|DocumentRoot "/app"|DocumentRoot "/app/content-build/build"|g' /app/apache/conf/httpd.conf
+  sed -i 's|<Directory "/app">|<Directory "/app/content-build/build">|g' /app/apache/conf/httpd.conf
+fi
+
 touch /app/apache/logs/error_log
 touch /app/apache/logs/access_log
 tail -F /app/apache/logs/error_log &

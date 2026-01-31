@@ -1,0 +1,50 @@
+# VA Content-Build Configuration
+#
+# This file enables the buildpack to recognize this as a VA content-build deployment.
+# Copy this file to .va-content-build in your repository root to activate.
+#
+# Example:
+#   cp .va-content-build.example .va-content-build
+
+VA_CONTENT_BUILD=true
+
+# CONTENT OPTIMIZATION (HIGHLY RECOMMENDED)
+# =========================================
+# Specify which content types to build. This can reduce build time from hours to minutes!
+#
+# Set this as a Heroku environment variable:
+#   heroku config:set CONTENT_TYPES="pages,navigation,forms"
+#
+# Available content types:
+# - pages: Standard content pages
+# - landing-pages: Landing pages
+# - forms: VA forms
+# - offices: Office pages
+# - healthcare: Healthcare region pages
+# - qa: Q&A content
+# - guides: Step-by-step guides
+# - media: Images and videos
+# - checklists: Checklists
+# - support: Support resources
+# - campaigns: Campaign landing pages
+# - stories: Stories
+# - news: News stories
+# - press-releases: Press releases
+# - events: Events
+# - outreach: Outreach pages
+# - navigation: Site navigation (menus, sidebars, footer)
+# - alerts: Alerts and notifications
+# - banners: Banner alerts
+# - taxonomy: Taxonomy terms
+# - homepage: Homepage content
+#
+# Example configurations:
+#
+# Minimal (fastest build, ~5-10 minutes):
+#   CONTENT_TYPES="pages,navigation"
+#
+# Common use case (moderate build, ~30-60 minutes):
+#   CONTENT_TYPES="pages,landing-pages,forms,navigation,media"
+#
+# Full site (slowest, 4-8 hours):
+#   Leave CONTENT_TYPES unset or empty

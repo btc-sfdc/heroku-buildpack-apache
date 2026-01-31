@@ -1,0 +1,4 @@
+# VA Content-Build Configuration
+# This file signals to the buildpack that this is a VA content-build deployment
+
+VA_CONTENT_BUILD=true
