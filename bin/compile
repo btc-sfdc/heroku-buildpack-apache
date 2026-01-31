@@ -113,7 +113,16 @@ yarn fetch-drupal-cache || echo "Warning: Could not fetch Drupal cache, proceedi
 
 # Build static content
 echo "-----> Building static content (this may take a while)"
-yarn build --buildtype=localhost
+# Set environment variables for build
+export BUILDTYPE="${BUILDTYPE:-localhost}"
+export NODE_ENV="${NODE_ENV:-production}"
+
+# Try to build with cached content only
+yarn build --buildtype=$BUILDTYPE --use-cms-export-cache || {
+  echo "       Build failed with cms-export-cache, trying without Drupal connection..."
+  # If that fails, try with minimal options
+  yarn build --buildtype=$BUILDTYPE
+}
 
 # The built static files should now be in the build directory
 # Typically this will be in build/localhost or similar
