@@ -30,10 +30,14 @@ shopt -s dotglob
 
 cd $BUILD_DIR
 
-# ====================================
-# STEP 1: Set up Node
-# ====================================
-echo "-----> Installing nvm and Node.js $NODE_VERSION"
+# Check if this is a VA content-build deployment
+if [ -f "$BUILD_DIR/.va-content-build" ]; then
+  echo "-----> Detected VA content-build deployment"
+
+  # ====================================
+  # STEP 1: Set up Node
+  # ====================================
+  echo "-----> Installing nvm and Node.js $NODE_VERSION"
 
 # Install nvm
 export NVM_DIR="$BUILD_DIR/.nvm"
@@ -128,7 +132,10 @@ yarn build --buildtype=$BUILDTYPE --use-cms-export-cache || {
 # Typically this will be in build/localhost or similar
 echo "-----> Static content build complete"
 
-cd "$BUILD_DIR"
+  cd "$BUILD_DIR"
+else
+  echo "-----> Skipping VA content-build (no .va-content-build marker file)"
+fi
 
 APACHE_URL="https://s3.amazonaws.com/php-lp/apache-$APACHE_VERSION.tar.gz"
 echo "-----> Bundling Apache version $APACHE_VERSION"
