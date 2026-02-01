@@ -137,6 +137,33 @@ else
   echo "-----> Skipping VA content-build (no .va-content-build marker file)"
 fi
 
+# For HTML-only deployments, use Python HTTP server instead of Apache
+if [ ! -f "$BUILD_DIR/.va-content-build" ] && [ -f "$BUILD_DIR/index.html" ]; then
+  echo "-----> HTML-only deployment detected, using Python HTTP server"
+
+  # Create a simple Python server script
+  cat > "$BUILD_DIR/server.py" << 'PYEOF'
+import http.server
+import socketserver
+import os
+
+PORT = int(os.environ.get('PORT', 8080))
+
+class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        super().end_headers()
+
+print(f"Starting server on port {PORT}")
+with socketserver.TCPServer(("", PORT), MyHTTPRequestHandler) as httpd:
+    httpd.serve_forever()
+PYEOF
+
+  chmod +x "$BUILD_DIR/server.py"
+  echo "-----> Static HTML server configured successfully"
+  exit 0
+fi
+
 APACHE_URL="https://s3.amazonaws.com/php-lp/apache-$APACHE_VERSION.tar.gz"
 echo "-----> Bundling Apache version $APACHE_VERSION"
 curl --silent --max-time 60 --location "$APACHE_URL" | tar xz
